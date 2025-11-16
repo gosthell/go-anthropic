@@ -253,7 +253,7 @@ type MessageContent struct {
 func (m *MessageContent) UnmarshalJSON(data []byte) error {
 	type Alias MessageContent
 	aux := &struct {
-		Citations []Citation `json:"citations"`
+		Citations json.RawMessage `json:"citations"`
 		*Alias
 	}{
 		Alias: (*Alias)(m),
@@ -262,8 +262,20 @@ func (m *MessageContent) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	// Copy Citations from aux to m
-	m.Citations = aux.Citations
+	// If array, unmarshal into []Citations
+	if len(aux.Citations) == 0 {
+		return nil
+	}
+	if aux.Citations[0] == '[' {
+		if err := json.Unmarshal(aux.Citations, &m.Citations); err != nil {
+			return err
+		}
+	} else {
+		// It's a document citation
+		if err := json.Unmarshal(aux.Citations, &m.DocumentCitations); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
